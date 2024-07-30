@@ -1,0 +1,46 @@
+name: Create MCPACK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Get last commit message
+      id: get_last_commit_message
+      run: |
+        LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+        echo "last_commit_message=$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
+
+    - name: Extract version number
+      id: extract_version
+      run: |
+        if [[ "${{ env.last_commit_message }}" =~ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+          VERSION="${BASH_REMATCH[1]}"
+          echo "version=$VERSION" >> $GITHUB_ENV
+        else
+          echo "No version number found in the last commit message."
+          exit 1
+        fi
+
+    - name: Make MCPACK
+      run: |
+        ZIP_NAME="import-export-button-unhider_v${{ env.version }}.zip.mcpack"
+        zip -r $ZIP_NAME . -x '.github/*' 'README.md'
+
+    - name: Create GitHub release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.version }}
+        release_name: Release v${{ env.version }}
+        body: "Release of version v${{ env.version }}"
+        draft: false
+        prerelease: false
+        files: import-export-button-unhider_v${{ env.version }}.zip.mcpack
